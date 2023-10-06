@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using Polar.Managers;
 
 namespace Polar
 {
@@ -24,6 +25,11 @@ namespace Polar
         }
 
         public virtual void OnCollide(Collider collider, Vector2 direction)
+        {
+
+        }
+
+        public virtual void DrawVisualizer(DrawerManager drawerManager)
         {
 
         }

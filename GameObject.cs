@@ -158,6 +158,14 @@ namespace Polar
             }
         }
 
+        public void DrawVisualizer(DrawerManager drawerManager)
+        {
+            foreach (Component component in Components)
+            {
+                component.DrawVisualizer(drawerManager);
+            }
+        }
+
         public void AddComponent(Component component)
         {
             component.GameObject = this;

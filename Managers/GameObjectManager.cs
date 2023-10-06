@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 
 namespace Polar.Managers
@@ -35,6 +36,17 @@ namespace Polar.Managers
                 if (gameObject.Enabled)
                 {
                     gameObject.Update(gameTime);
+                }
+            }
+        }
+
+        public void DrawVisualizer(DrawerManager drawerManager)
+        {
+            foreach (GameObject gameObject in _items)
+            {
+                if (gameObject.Enabled)
+                {
+                    gameObject.DrawVisualizer(drawerManager);
                 }
             }
         }
