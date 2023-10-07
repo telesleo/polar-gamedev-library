@@ -211,6 +211,32 @@ namespace Polar.Managers
             }
         }
 
+        public void DrawCircle(Vector2 position, float radius)
+        {
+            int vertexCount = 12;
+            int indexCount = vertexCount + (vertexCount - 3) * 2;
+            Color color = Color.White;
+            VertexPositionColorTexture[] vertices = new VertexPositionColorTexture[vertexCount];
+            int[] indices = new int[indexCount];
+            float angle = MathHelper.TwoPi / vertexCount;
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                float vertexAngle = i * angle;
+                Vector2 normalizedVertexPosition = PolarMath.PolarToEuclidean(1f, vertexAngle);
+                Vector2 vertexPosition = position + normalizedVertexPosition * radius;
+                vertices[i] = new VertexPositionColorTexture(new Vector3(vertexPosition.X, vertexPosition.Y, 0), color, normalizedVertexPosition);
+            }
+            int triangleCount = indices.Length / 3;
+            for (int i = 0; i < triangleCount; i += 1)
+            {
+                int currentIndex = i * 3;
+                indices[currentIndex] = 0;
+                indices[currentIndex + 1] = i + 1;
+                indices[currentIndex + 2] = i + 2;
+            }
+            AddShape(_visualizerTexture, vertices, indices, 0);
+        }
+
         public struct ShapeGroup
         {
             public Texture2D Texture;
