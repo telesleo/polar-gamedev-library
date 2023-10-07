@@ -17,15 +17,15 @@ namespace Polar
             Vector2 scale = GameObject.Scale;
             Matrix scaleMatrix = Matrix.CreateScale(scale.X, scale.Y, 0);
             Matrix rotationMatrix = Matrix.CreateRotationZ(MathHelper.ToRadians(-GameObject.Rotation));
-            Vector2 position = GameObject.Position * PolarSystem.UnitSize;
-            Matrix translationMatrix = Matrix.CreateTranslation(new Vector3(position.X, position.Y, Depth * PolarSystem.UnitSize));
+            Vector2 position = GameObject.Position;
+            Matrix translationMatrix = Matrix.CreateTranslation(new Vector3(position.X, position.Y, Depth));
             foreach (SubMesh subMesh in SubMeshes)
             {
                 VertexPositionColorTexture[] vertices = new VertexPositionColorTexture[4];
                 for (int i = 0; i < vertices.Length; i++)
                 {
                     vertices[i] = new VertexPositionColorTexture(subMesh.Vertices[i].Position, subMesh.Vertices[i].Color, subMesh.Vertices[i].TextureCoordinate);
-                    vertices[i].Position = Vector3.Transform(vertices[i].Position * PolarSystem.UnitSize, scaleMatrix * rotationMatrix * translationMatrix);
+                    vertices[i].Position = Vector3.Transform(vertices[i].Position, scaleMatrix * rotationMatrix * translationMatrix);
                 }
                 _drawerManager.AddShape(PolarSystem.GetTexture(subMesh.TexturePath), vertices, subMesh.Indices, Order);
             }

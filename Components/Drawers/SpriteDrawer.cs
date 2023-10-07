@@ -29,13 +29,13 @@ namespace Polar {
 
         public override void DrawerDraw()
         {
-            Vector2 position = GameObject.Position * PolarSystem.UnitSize;
-            float width = Sprite.Width * GameObject.Scale.X;
-            float height = Sprite.Height * GameObject.Scale.Y;
+            Vector2 position = GameObject.Position;
+            float width = Sprite.Width * GameObject.Scale.X / PolarSystem.UnitSize;
+            float height = Sprite.Height * GameObject.Scale.Y / PolarSystem.UnitSize;
             float offsetX = width / 2;
             float offsetY = height / 2;
             Matrix rotationMatrix = Matrix.CreateRotationZ(_radiansRotation);
-            Matrix translationMatrix = Matrix.CreateTranslation(position.X, position.Y, Depth * PolarSystem.UnitSize);
+            Matrix translationMatrix = Matrix.CreateTranslation(position.X, position.Y, Depth);
             Vector3 positionA = Vector3.Transform(new Vector3(-offsetX, -offsetY, 0), rotationMatrix * translationMatrix);
             Vector3 positionB = Vector3.Transform(new Vector3(-offsetX, offsetY, 0), rotationMatrix * translationMatrix);
             Vector3 positionC = Vector3.Transform(new Vector3(offsetX, offsetY, 0), rotationMatrix * translationMatrix);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Polar.Math;
 
 namespace Polar.Managers
 {
@@ -14,6 +15,8 @@ namespace Polar.Managers
 
         private RenderTarget2D _lightRenderTarget;
         private RenderTarget2D _colorRenderTarget;
+
+        private Texture2D _visualizerTexture;
 
         public override void Initialize()
         {
@@ -32,6 +35,8 @@ namespace Polar.Managers
                 viewport.Width / 8,
                 viewport.Height / 8
             );
+            _visualizerTexture = new Texture2D(PolarSystem.Game.GraphicsDevice, 1, 1);
+            _visualizerTexture.SetData(new Color[] { Color.White });
         }
 
         public override void LoadContent()
@@ -45,6 +50,7 @@ namespace Polar.Managers
             base.Unload();
             _colorRenderTarget.Dispose();
             _lightRenderTarget.Dispose();
+            _visualizerTexture.Dispose();
         }
 
         public override void Add(Drawer item)
@@ -62,6 +68,10 @@ namespace Polar.Managers
 
         public void AddShape(Texture2D texture, VertexPositionColorTexture[] vertices, int[] indices, int order)
         {
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                vertices[i].Position *= PolarSystem.UnitSize;
+            }
             string key = new StringBuilder().Append(texture.Name).Append(order).ToString();
             if (!_shapeGroups.ContainsKey(key))
             {
