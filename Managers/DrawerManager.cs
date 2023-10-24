@@ -9,19 +9,18 @@ namespace Polar.Managers
 {
     public class DrawerManager : Manager<Drawer>
     {
-        private Dictionary<string, ShapeGroup> _shapeGroups;
-
-        private Effect _effect;
+        private Dictionary<Material, ShapeGroup> _shapeGroups;
 
         private RenderTarget2D _lightRenderTarget;
         private RenderTarget2D _colorRenderTarget;
 
-        private Texture2D _visualizerTexture;
+        private Effect _lightEffect;
+        private Material _visualizerMaterial;
 
         public override void Initialize()
         {
             base.Initialize();
-            _shapeGroups = new Dictionary<string, ShapeGroup>();
+            _shapeGroups = new Dictionary<Material, ShapeGroup>();
 
             GraphicsDevice graphicsDevice = PolarSystem.Game.GraphicsDevice;
             Viewport viewport = graphicsDevice.Viewport;
@@ -35,14 +34,16 @@ namespace Polar.Managers
                 viewport.Width / 8,
                 viewport.Height / 8
             );
-            _visualizerTexture = new Texture2D(PolarSystem.Game.GraphicsDevice, 1, 1);
-            _visualizerTexture.SetData(new Color[] { Color.White });
+            Texture2D visualizerTexture = new Texture2D(PolarSystem.Game.GraphicsDevice, 1, 1);
+            visualizerTexture.SetData(new Color[] { Color.White });
+            _visualizerMaterial = new Material(PolarSystem.Game.Content.Load<Effect>("Shaders/Effect"));
+            _visualizerMaterial.Parameters.Add("Texture", visualizerTexture);
         }
 
         public override void LoadContent()
         {
+            _lightEffect = PolarSystem.Game.Content.Load<Effect>("Shaders/Effect");
             base.LoadContent();
-            _effect = PolarSystem.Game.Content.Load<Effect>("Shaders/Effect");
         }
 
         public override void Unload()
@@ -50,7 +51,7 @@ namespace Polar.Managers
             base.Unload();
             _colorRenderTarget.Dispose();
             _lightRenderTarget.Dispose();
-            _visualizerTexture.Dispose();
+            ((Texture2D)_visualizerMaterial.Parameters["Texture"]).Dispose();
         }
 
         public override void Add(Drawer item)
@@ -66,18 +67,17 @@ namespace Polar.Managers
             });
         }
 
-        public void AddShape(Texture2D texture, VertexPositionColorTexture[] vertices, int[] indices, int order)
+        public void AddShape(Material material, VertexPositionColorTexture[] vertices, int[] indices, int order)
         {
             for (int i = 0; i < vertices.Length; i++)
             {
                 vertices[i].Position *= PolarSystem.UnitSize;
             }
-            string key = new StringBuilder().Append(texture.Name).Append(order).ToString();
-            if (!_shapeGroups.ContainsKey(key))
+            if (!_shapeGroups.ContainsKey(material))
             {
-                _shapeGroups.Add(key, new ShapeGroup(texture));
+                _shapeGroups.Add(material, new ShapeGroup(material));
             }
-            ShapeGroup shapeGroup = _shapeGroups[key];
+            ShapeGroup shapeGroup = _shapeGroups[material];
             int indexOffset = shapeGroup.Vertices.Count;
             shapeGroup.Vertices.AddRange(vertices);
             for (int i = 0; i < indices.Length; i++)
@@ -94,8 +94,9 @@ namespace Polar.Managers
             IndexBuffer indexBuffer = new IndexBuffer(graphicsDevice, typeof(short), indices.Length, BufferUsage.None);
             graphicsDevice.SetVertexBuffer(vertexBuffer);
             graphicsDevice.Indices = indexBuffer;
-            _effect.Parameters["Texture"].SetValue(shapeGroup.Texture);
-            _effect.Techniques[0].Passes[0].Apply();
+            shapeGroup.Material.ApplyParameters();
+            Effect effect = shapeGroup.Material.Effect;
+            effect.Techniques[0].Passes[0].Apply();
             graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
             vertexBuffer.Dispose();
             indexBuffer.Dispose();
@@ -150,18 +151,18 @@ namespace Polar.Managers
             }
             foreach (PointLight pointLight in lightManager.PointLights)
             {
-                _effect.Parameters["LightPosition"].SetValue(pointLight.GameObject.Position * PolarSystem.UnitSize);
-                _effect.Parameters["LightRange"].SetValue(pointLight.Range * PolarSystem.UnitSize);
-                _effect.Parameters["LightColor"].SetValue(pointLight.Color.ToVector4());
-                _effect.Parameters["LightIntensity"].SetValue(pointLight.Intensity);
-                _effect.Techniques[1].Passes[0].Apply();
+                _lightEffect.Parameters["LightPosition"].SetValue(pointLight.GameObject.Position * PolarSystem.UnitSize);
+                _lightEffect.Parameters["LightRange"].SetValue(pointLight.Range * PolarSystem.UnitSize);
+                _lightEffect.Parameters["LightColor"].SetValue(pointLight.Color.ToVector4());
+                _lightEffect.Parameters["LightIntensity"].SetValue(pointLight.Intensity);
+                _lightEffect.Techniques[1].Passes[0].Apply();
                 graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
             }
 
             graphicsDevice.SetRenderTarget(null);
-            _effect.Parameters["LightTexture"].SetValue(_lightRenderTarget);
-            _effect.Parameters["ColorTexture"].SetValue(_colorRenderTarget);
-            _effect.Techniques[2].Passes[0].Apply();
+            _lightEffect.Parameters["LightTexture"].SetValue(_lightRenderTarget);
+            _lightEffect.Parameters["ColorTexture"].SetValue(_colorRenderTarget);
+            _lightEffect.Techniques[2].Passes[0].Apply();
             graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
             vertexBuffer.Dispose();
             indexBuffer.Dispose();
@@ -178,8 +179,8 @@ namespace Polar.Managers
             graphicsDevice.RasterizerState = RasterizerState.CullNone;
             graphicsDevice.SamplerStates[0] = SamplerState.PointWrap;
             graphicsDevice.SamplerStates[1] = SamplerState.LinearClamp;
-            _effect.Parameters["WorldViewProjection"].SetValue(GetWorldViewProjectionMatrix(camera));
-
+            Matrix viewWorldProjection = GetWorldViewProjectionMatrix(camera);
+            _lightEffect.Parameters["WorldViewProjection"].SetValue(viewWorldProjection);
             if (lightManager != null && PolarSystem.Lighting)
             {
                 graphicsDevice.SetRenderTarget(_colorRenderTarget);
@@ -189,6 +190,7 @@ namespace Polar.Managers
                 graphicsDevice.SetRenderTarget(null);
             }
             foreach (ShapeGroup shapeGroup in _shapeGroups.Values) {
+                shapeGroup.Material.Parameters["WorldViewProjection"] = viewWorldProjection;
                 RenderShape(graphicsDevice, shapeGroup);
             }
             if (lightManager != null && PolarSystem.Lighting)
@@ -234,18 +236,18 @@ namespace Polar.Managers
                 indices[currentIndex + 1] = i + 1;
                 indices[currentIndex + 2] = i + 2;
             }
-            AddShape(_visualizerTexture, vertices, indices, 0);
+            AddShape(_visualizerMaterial, vertices, indices, 0);
         }
 
         public struct ShapeGroup
         {
-            public Texture2D Texture;
+            public Material Material;
             public List<VertexPositionColorTexture> Vertices;
             public List<int> Indices;
 
-            public ShapeGroup(Texture2D texture)
+            public ShapeGroup(Material material)
             {
-                Texture = texture;
+                Material = material;
                 Vertices = new List<VertexPositionColorTexture>();
                 Indices = new List<int>();
             }
