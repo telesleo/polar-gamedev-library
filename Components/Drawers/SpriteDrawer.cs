@@ -1,16 +1,19 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace Polar {
-    public class SpriteDrawer : Drawer {
+namespace Polar
+{
+    public class SpriteDrawer : Drawer
+    {
         public string SpritePath;
         public Color Color;
 
-        public Texture2D Sprite { get; private set; }
+        private Material _material;
 
         private float _radiansRotation;
 
-        public SpriteDrawer(string spritePath, Color color = default, float depth = 0f, int order = 0) : base(depth, order) {
+        public SpriteDrawer(string spritePath, Color color = default, float depth = 0f, int order = 0) : base(depth, order)
+        {
             SpritePath = spritePath;
             Color = color == default ? Color.White : color;
         }
@@ -18,7 +21,9 @@ namespace Polar {
         public override void Initialize(Segment segment)
         {
             base.Initialize(segment);
-            Sprite = PolarSystem.GetTexture(SpritePath);
+            Texture2D sprite = PolarSystem.GetTexture(SpritePath);
+            _material = new Material(PolarSystem.Game.Content.Load<Effect>("Shaders/Effect"));
+            _material.Parameters.Add("Texture", sprite);
         }
 
         public override void Update(GameTime gameTime)
@@ -30,8 +35,9 @@ namespace Polar {
         public override void DrawerDraw()
         {
             Vector2 position = GameObject.Position;
-            float width = Sprite.Width * GameObject.Scale.X / PolarSystem.UnitSize;
-            float height = Sprite.Height * GameObject.Scale.Y / PolarSystem.UnitSize;
+            Texture2D texture = ((Texture2D)_material.Parameters["Texture"]);
+            float width = texture.Width * GameObject.Scale.X / PolarSystem.UnitSize;
+            float height = texture.Height * GameObject.Scale.Y / PolarSystem.UnitSize;
             float offsetX = width / 2;
             float offsetY = height / 2;
             Matrix rotationMatrix = Matrix.CreateRotationZ(_radiansRotation);
@@ -51,7 +57,7 @@ namespace Polar {
             {
                 0, 1, 2, 0, 2, 3
             };
-            _drawerManager.AddShape(Sprite, vertices, indices, Order);
+            _drawerManager.AddShape(_material, vertices, indices, Order);
         }
     }
 }
