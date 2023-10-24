@@ -27,20 +27,20 @@ namespace Polar
                     vertices[i] = new VertexPositionColorTexture(subMesh.Vertices[i].Position, subMesh.Vertices[i].Color, subMesh.Vertices[i].TextureCoordinate);
                     vertices[i].Position = Vector3.Transform(vertices[i].Position, scaleMatrix * rotationMatrix * translationMatrix);
                 }
-                _drawerManager.AddShape(PolarSystem.GetTexture(subMesh.TexturePath), vertices, subMesh.Indices, Order);
+                _drawerManager.AddShape(subMesh.Material, vertices, subMesh.Indices, Order);
             }
         }
     }
 
     public class SubMesh
     {
-        public string TexturePath;
+        public Material Material;
         public VertexPositionColorTexture[] Vertices;
         public int[] Indices;
 
-        public SubMesh(string texturePath, VertexPositionColorTexture[] vertices, int[] indices)
+        public SubMesh(Material material, VertexPositionColorTexture[] vertices, int[] indices)
         {
-            TexturePath = texturePath;
+            Material = material;
             Vertices = vertices;
             Indices = indices;
         }
