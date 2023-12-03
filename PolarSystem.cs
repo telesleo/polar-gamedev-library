@@ -1,7 +1,9 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Newtonsoft.Json;
 using Polar.Managers;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Polar {
     public sealed class PolarSystem {
@@ -56,6 +58,13 @@ namespace Polar {
         public void Unload()
         {
             SegmentManager.ActiveSegment?.Unload();
+        }
+
+        public static T LoadPreset<T>(string path)
+        {
+            string jsonFilePath = Path.Combine(Game.Content.RootDirectory, path);
+            string json = File.ReadAllText(jsonFilePath);
+            return JsonConvert.DeserializeObject<T>(json);
         }
 
         public static Texture2D GetTexture(string path)
