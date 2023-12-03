@@ -35,7 +35,7 @@ namespace Polar
         public override void DrawerDraw()
         {
             Vector2 position = GameObject.Position;
-            Texture2D texture = ((Texture2D)_material.Parameters["Texture"]);
+            Texture2D texture = (Texture2D)_material.Parameters["Texture"];
             float width = texture.Width * GameObject.Scale.X / PolarSystem.UnitSize;
             float height = texture.Height * GameObject.Scale.Y / PolarSystem.UnitSize;
             float offsetX = width / 2;
