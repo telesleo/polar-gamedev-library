@@ -162,7 +162,10 @@ namespace Polar
         {
             foreach (Component component in Components)
             {
-                component.DrawVisualizer(drawerManager);
+                if (component.Visualizer)
+                {
+                    component.DrawVisualizer(drawerManager);
+                }
             }
         }
 
