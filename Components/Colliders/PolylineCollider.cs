@@ -1,12 +1,11 @@
 ﻿using Microsoft.Xna.Framework;
-using Polar.Managers;
 
 namespace Polar
 {
     public class PolylineCollider : Collider {
         public Vector2[][] Polylines;
 
-        public PolylineCollider(Vector2[][] polylines, bool @fixed = true) : base(@fixed) {
+        public PolylineCollider(Vector2[][] polylines = default, bool @fixed = true) : base(@fixed) {
             Polylines = polylines;
         }
 
