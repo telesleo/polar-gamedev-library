@@ -9,6 +9,8 @@ namespace Polar
 
         internal int _executionOrder;
 
+        public bool Visualizer = true;
+
         public virtual void Initialize(Segment segment)
         {
 
