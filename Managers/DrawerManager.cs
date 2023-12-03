@@ -178,7 +178,7 @@ namespace Polar.Managers
             GraphicsDevice graphicsDevice = PolarSystem.Game.GraphicsDevice;
             graphicsDevice.RasterizerState = RasterizerState.CullNone;
             graphicsDevice.SamplerStates[0] = SamplerState.PointWrap;
-            graphicsDevice.SamplerStates[1] = SamplerState.LinearClamp;
+            graphicsDevice.SamplerStates[1] = SamplerState.PointWrap;
             Matrix viewWorldProjection = GetWorldViewProjectionMatrix(camera);
             _lightEffect.Parameters["WorldViewProjection"].SetValue(viewWorldProjection);
             if (lightManager != null && PolarSystem.Lighting)
@@ -195,7 +195,9 @@ namespace Polar.Managers
             }
             if (lightManager != null && PolarSystem.Lighting)
             {
+                graphicsDevice.SamplerStates[1] = SamplerState.LinearClamp;
                 RenderLight(graphicsDevice, camera, lightManager);
+                graphicsDevice.SamplerStates[1] = SamplerState.PointWrap;
             }
             _shapeGroups.Clear();
         }
