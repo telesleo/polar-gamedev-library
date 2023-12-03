@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Microsoft.Xna.Framework;
 using Polar.Managers;
 
@@ -187,6 +188,19 @@ namespace Polar
             return default;
         }
 
+        public T[] GetComponents<T>() where T : Component
+        {
+            List<T> components = new List<T>();
+            foreach (Component component in Components)
+            {
+                if (component is T)
+                {
+                    components.Add((T)component);
+                }
+            }
+            return components.ToArray();
+        }
+
         public T GetChildComponent<T>() where T : Component
         {
             T component = GetComponent<T>();
@@ -203,6 +217,17 @@ namespace Polar
                 }
             }
             return null;
+        }
+
+        public T[] GetChildComponents<T>() where T : Component
+        {
+            List<T> components = new List<T>();
+            components.AddRange(GetComponents<T>());
+            foreach (var child in ChildrenObjects)
+            {
+                components.AddRange(child.GetChildComponents<T>());
+            }
+            return components.ToArray();
         }
 
         public void AddChildObject(GameObject gameObject)
