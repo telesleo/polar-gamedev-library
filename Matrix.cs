@@ -18,5 +18,14 @@
             YCount = yCount;
             Values = new T[XCount * YCount];
         }
+
+        public bool Valid(int x, int y)
+        {
+            if (x < 0 || x >= XCount || y < 0 || y >= YCount)
+            {
+                return false;
+            }
+            return true;
+        }
     }
 }
