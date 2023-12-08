@@ -11,6 +11,7 @@ namespace Polar {
         public static bool DisplayFPS;
         public static bool DrawColliders = false;
         public static bool Lighting = false;
+        public static int VisualizerOrder = 100000;
 
         public static Game Game { get; private set; }
         public Input Input { get; private set; }
