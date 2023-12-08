@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using Microsoft.Xna.Framework;
 using Polar.Managers;
 
@@ -8,8 +7,9 @@ namespace Polar
 {
     public class GameObject
     {
-        private GameObjectManager _gameObjectManager;
+        public GameObjectManager GameObjectManager { get; private set; }
 
+        public string Name;
         public string Tag;
 
         public bool Enabled;
@@ -21,7 +21,6 @@ namespace Polar
         public List<Component> Components { get; private set; }
         public GameObject ParentObject;
         public List<GameObject> ChildrenObjects { get; private set; }
-
 
         public Vector2 Position
         {
@@ -113,8 +112,9 @@ namespace Polar
             }
         }
 
-        public GameObject(Vector2 position, Vector2 scale, float rotation, string tag = null, bool enabled = true)
+        public GameObject(string name,Vector2 position, Vector2 scale, float rotation, string tag = null, bool enabled = true)
         {
+            Name = name;
             Enabled = enabled;
 
             Components = new List<Component>();
@@ -128,7 +128,7 @@ namespace Polar
 
         public void Initialize(Segment segment)
         {
-            _gameObjectManager = segment.GameObjectManager;
+            GameObjectManager = segment.GameObjectManager;
             foreach (Component component in Components)
             {
                 component.Initialize(segment);
@@ -244,7 +244,7 @@ namespace Polar
 
         public GameObject[] GetObjectsByTag(string tag)
         {
-            return _gameObjectManager.GetObjectsByTag(tag);
+            return GameObjectManager.GetObjectsByTag(tag);
         }
 
         public void SetParent(GameObject parent)
