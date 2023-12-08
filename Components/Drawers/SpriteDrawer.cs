@@ -7,10 +7,35 @@ namespace Polar
     {
         public string SpritePath;
         public Color Color;
+        private bool _flipX;
+        public bool FlipX { 
+            get 
+            {
+                return _flipX; 
+            }
+            set
+            {
+                _flipX = value;
+                UpdateUV();
+            }
+        }
+        private bool _flipY;
+        public bool FlipY
+        {
+            get
+            {
+                return _flipY;
+            }
+            set
+            {
+                _flipY = value;
+                UpdateUV();
+            }
+        }
 
         private Material _material;
-
         private float _radiansRotation;
+        private Vector2[] uv;
 
         public SpriteDrawer(string spritePath, Color color = default, float depth = 0f, int order = 0) : base(depth, order)
         {
@@ -24,6 +49,18 @@ namespace Polar
             Texture2D sprite = PolarSystem.GetTexture(SpritePath);
             _material = new Material(PolarSystem.Game.Content.Load<Effect>("Shaders/Effect"));
             _material.Parameters.Add("Texture", sprite);
+            UpdateUV();
+        }
+
+        public void UpdateUV()
+        {
+            uv = new Vector2[4]
+            {
+                new Vector2(FlipX ? 1 : 0, FlipY ? 0 : 1),
+                new Vector2(FlipX ? 1 : 0, FlipY ? 1 : 0),
+                new Vector2(FlipX ? 0 : 1, FlipY ? 1 : 0),
+                new Vector2(FlipX ? 0 : 1, FlipY ? 0 : 1)
+            };
         }
 
         public override void Update(GameTime gameTime)
@@ -48,10 +85,10 @@ namespace Polar
             Vector3 positionD = Vector3.Transform(new Vector3(offsetX, -offsetY, 0), rotationMatrix * translationMatrix);
             VertexPositionColorTexture[] vertices = new VertexPositionColorTexture[4]
             {
-                new VertexPositionColorTexture(positionA, Color, new Vector2(0, 1)),
-                new VertexPositionColorTexture(positionB, Color, new Vector2(0, 0)),
-                new VertexPositionColorTexture(positionC, Color, new Vector2(1, 0)),
-                new VertexPositionColorTexture(positionD, Color, new Vector2(1, 1))
+                new VertexPositionColorTexture(positionA, Color, uv[0]),
+                new VertexPositionColorTexture(positionB, Color, uv[1]),
+                new VertexPositionColorTexture(positionC, Color, uv[2]),
+                new VertexPositionColorTexture(positionD, Color, uv[3])
             };
             int[] indices = new int[6]
             {
