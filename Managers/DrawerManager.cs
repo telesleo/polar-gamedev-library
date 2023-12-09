@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Polar.Math;
@@ -75,7 +75,7 @@ namespace Polar.Managers
             }
             if (!_shapeGroups.ContainsKey(material))
             {
-                _shapeGroups.Add(material, new ShapeGroup(material));
+                _shapeGroups.Add(material, new ShapeGroup(material, order));
             }
             ShapeGroup shapeGroup = _shapeGroups[material];
             int indexOffset = shapeGroup.Vertices.Count;
@@ -189,7 +189,9 @@ namespace Polar.Managers
             {
                 graphicsDevice.SetRenderTarget(null);
             }
-            foreach (ShapeGroup shapeGroup in _shapeGroups.Values) {
+            List<ShapeGroup> shapeGroups = _shapeGroups.Values.ToList();
+            shapeGroups.Sort((a, b) => a.Order - b.Order);
+            foreach (ShapeGroup shapeGroup in shapeGroups) {
                 shapeGroup.Material.Parameters["WorldViewProjection"] = viewWorldProjection;
                 RenderShape(graphicsDevice, shapeGroup);
             }
@@ -215,11 +217,14 @@ namespace Polar.Managers
             }
         }
 
-        public void DrawCircle(Vector2 position, float radius)
+        public void DrawCircle(Vector2 position, float radius, Color color = default, int order = 0)
         {
+            if (color == default)
+            {
+                color = Color.White;
+            }
             int vertexCount = 12;
             int indexCount = vertexCount + (vertexCount - 3) * 2;
-            Color color = Color.White;
             VertexPositionColorTexture[] vertices = new VertexPositionColorTexture[vertexCount];
             int[] indices = new int[indexCount];
             float angle = MathHelper.TwoPi / vertexCount;
@@ -238,7 +243,7 @@ namespace Polar.Managers
                 indices[currentIndex + 1] = i + 1;
                 indices[currentIndex + 2] = i + 2;
             }
-            AddShape(_visualizerMaterial, vertices, indices, 0);
+            AddShape(_visualizerMaterial, vertices, indices, order);
         }
 
         public struct ShapeGroup
@@ -246,12 +251,14 @@ namespace Polar.Managers
             public Material Material;
             public List<VertexPositionColorTexture> Vertices;
             public List<int> Indices;
+            public int Order;
 
-            public ShapeGroup(Material material)
+            public ShapeGroup(Material material, int order)
             {
                 Material = material;
                 Vertices = new List<VertexPositionColorTexture>();
                 Indices = new List<int>();
+                Order = order;
             }
         }
     }

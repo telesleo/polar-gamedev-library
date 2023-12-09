@@ -1,12 +1,11 @@
 ﻿using Microsoft.Xna.Framework;
-using System;
 using System.Collections.Generic;
 
 namespace Polar.Managers
 {
     public sealed class GameObjectManager : Manager<GameObject>
     {
-        private Segment _segment;
+        public Segment Segment { get; private set; }
 
         public override void Remove(GameObject item)
         {
@@ -17,59 +16,71 @@ namespace Polar.Managers
         public void AddAndInitializeGameObject(GameObject gameObject)
         {
             Add(gameObject);
-            gameObject.Initialize(_segment);
+            gameObject.Initialize(Segment);
         }
 
         public void InitializeGameObjects(Segment segment)
         {
-            _segment = segment;
-            foreach (GameObject gameObject in _items)
+            Segment = segment;
+            for (int i = 0; i < _items.Count; i++)
             {
-                gameObject.Initialize(_segment);
+                _items[i].Initialize(Segment);
             }
         }
 
         public override void Update(GameTime gameTime)
         {
-            foreach (GameObject gameObject in _items)
+            for (int i = 0; i < _items.Count; i++)
             {
-                if (gameObject.Enabled)
+                if (_items[i].Enabled)
                 {
-                    gameObject.Update(gameTime);
+                    _items[i].Update(gameTime);
                 }
             }
         }
 
         public void DrawVisualizer(DrawerManager drawerManager)
         {
-            foreach (GameObject gameObject in _items)
+            for (int i = 0; i < _items.Count; i++)
             {
-                if (gameObject.Enabled)
+                if (_items[i].Enabled)
                 {
-                    gameObject.DrawVisualizer(drawerManager);
+                    _items[i].DrawVisualizer(drawerManager);
                 }
             }
         }
 
         public override void Unload()
         {
-            foreach (GameObject gameObject in _items)
+            for (int i = 0; i < _items.Count; i++)
             {
-                gameObject.Unload();
+                _items[i].Unload();
             }
         }
 
         public GameObject[] GetObjectsByTag(string tag)
         {
             List<GameObject> gameObjects = new List<GameObject>();
-            foreach (GameObject gameObject in _items) 
+            for (int i = 0; i < _items.Count; i++)
             {
-                if (gameObject.Tag == tag)
+                if (_items[i].Tag == tag)
                 {
-                    gameObjects.Add(gameObject);
+                    gameObjects.Add(_items[i]);
                 }
             }
             return gameObjects.ToArray();
+        }
+
+        public GameObject GetObjectByName(string name)
+        {
+            for (int i = 0; i < _items.Count; i++)
+            {
+                if (_items[i].Name == name)
+                {
+                    return _items[i];
+                }
+            }
+            return null;
         }
     }
 }

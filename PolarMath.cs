@@ -18,6 +18,11 @@ namespace Polar.Math
             float angle = (float)MathF.Atan2(euclidean.Y, euclidean.X);
             return new Polar(radius, angle);
         }
+
+        public static float Wrap(float value, float range)
+        {
+            return (value % range + range) % range;
+        }
     }
 
     public struct Polar
