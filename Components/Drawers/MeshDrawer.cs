@@ -7,12 +7,12 @@ namespace Polar
     {
         public SubMesh[] SubMeshes;
 
-        public MeshDrawer(SubMesh[] subMeshes, float depth = 0, int order = 0) : base(depth, order)
+        public MeshDrawer(SubMesh[] subMeshes, float depth = 0, int order = 0, int lightLayer = 0) : base(depth, order, lightLayer)
         {
             SubMeshes = subMeshes;
         }
 
-        public override void DrawerDraw()
+        public override void Draw()
         {
             Vector2 scale = GameObject.Scale;
             Matrix scaleMatrix = Matrix.CreateScale(scale.X, scale.Y, 0);
@@ -27,7 +27,7 @@ namespace Polar
                     vertices[i] = new VertexPositionColorTexture(subMesh.Vertices[i].Position, subMesh.Vertices[i].Color, subMesh.Vertices[i].TextureCoordinate);
                     vertices[i].Position = Vector3.Transform(vertices[i].Position, scaleMatrix * rotationMatrix * translationMatrix);
                 }
-                _drawerManager.AddShape(subMesh.Material, vertices, subMesh.Indices, Order);
+                _drawerManager.AddMesh(vertices, subMesh.Indices, subMesh.Material, Order, LightLayer);
             }
         }
     }
