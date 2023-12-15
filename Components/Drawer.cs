@@ -8,11 +8,13 @@ namespace Polar
 
         public float Depth;
         public int Order;
+        public int LightLayer;
 
-        public Drawer(float depth, int order)
+        public Drawer(float depth, int order, int lightLayer = 0)
         {
             Depth = depth;
             Order = order;
+            LightLayer = lightLayer;
         }
 
         public override void Initialize(Segment segment)
@@ -28,6 +30,6 @@ namespace Polar
             _drawerManager.Remove(this);
         }
 
-        public abstract void DrawerDraw();
+        public abstract void Draw();
     }
 }
