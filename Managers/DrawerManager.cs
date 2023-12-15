@@ -3,25 +3,28 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Polar.Math;
 
 namespace Polar.Managers
 {
     public class DrawerManager : Manager<Drawer>
     {
-        private Dictionary<Material, ShapeGroup> _shapeGroups;
+        private Dictionary<int, LightLayerGroup> _lightLayerGroups;
 
-        private RenderTarget2D _lightRenderTarget;
         private RenderTarget2D _colorRenderTarget;
+        private RenderTarget2D _lightRenderTarget;
+        private RenderTarget2D _screenRenderTarget;
 
-        private Effect _lightEffect;
-        private Material _visualizerMaterial;
+        private Effect _effect;
+
+        public DrawerManager()
+        {
+            _lightLayerGroups = new Dictionary<int, LightLayerGroup>();
+        }
 
         public override void Initialize()
         {
             base.Initialize();
-            _shapeGroups = new Dictionary<Material, ShapeGroup>();
-
+            _effect = PolarSystem.Game.Content.Load<Effect>("Shaders/LightEffect");
             GraphicsDevice graphicsDevice = PolarSystem.Game.GraphicsDevice;
             Viewport viewport = graphicsDevice.Viewport;
             _colorRenderTarget = new RenderTarget2D(
@@ -34,16 +37,16 @@ namespace Polar.Managers
                 viewport.Width / 8,
                 viewport.Height / 8
             );
-            Texture2D visualizerTexture = new Texture2D(PolarSystem.Game.GraphicsDevice, 1, 1);
-            visualizerTexture.SetData(new Color[] { Color.White });
-            _visualizerMaterial = new Material(PolarSystem.Game.Content.Load<Effect>("Shaders/Effect"));
-            _visualizerMaterial.Parameters.Add("Texture", visualizerTexture);
-        }
-
-        public override void LoadContent()
-        {
-            _lightEffect = PolarSystem.Game.Content.Load<Effect>("Shaders/Effect");
-            base.LoadContent();
+            _screenRenderTarget = new RenderTarget2D(
+                graphicsDevice,
+                viewport.Width,
+                viewport.Height,
+                false,
+                graphicsDevice.PresentationParameters.BackBufferFormat,
+                graphicsDevice.PresentationParameters.DepthStencilFormat,
+                graphicsDevice.PresentationParameters.MultiSampleCount,
+                RenderTargetUsage.PreserveContents
+            );
         }
 
         public override void Unload()
@@ -51,58 +54,134 @@ namespace Polar.Managers
             base.Unload();
             _colorRenderTarget.Dispose();
             _lightRenderTarget.Dispose();
-            ((Texture2D)_visualizerMaterial.Parameters["Texture"]).Dispose();
+            _screenRenderTarget.Dispose();
+            _effect.Dispose();
         }
 
-        public override void Add(Drawer item)
-        {
-            base.Add(item);
-            _items.Sort((a, b) => {
-                int orderPriority = a.Order.CompareTo(b.Order);
-                if (orderPriority == 0)
-                {
-                    return a.Depth.CompareTo(b.Depth);
-                }
-                return orderPriority;
-            });
-        }
-
-        public void AddShape(Material material, VertexPositionColorTexture[] vertices, int[] indices, int order)
+        public void AddMesh(VertexPositionColorTexture[] vertices, int[] indices, Material material, int order, int lightLayer)
         {
             for (int i = 0; i < vertices.Length; i++)
             {
                 vertices[i].Position *= PolarSystem.UnitSize;
             }
-            if (!_shapeGroups.ContainsKey(material))
+            if (!_lightLayerGroups.ContainsKey(lightLayer))
             {
-                _shapeGroups.Add(material, new ShapeGroup(material, order));
+                _lightLayerGroups.Add(lightLayer, new LightLayerGroup());
             }
-            ShapeGroup shapeGroup = _shapeGroups[material];
-            int indexOffset = shapeGroup.Vertices.Count;
-            shapeGroup.Vertices.AddRange(vertices);
-            for (int i = 0; i < indices.Length; i++)
+            LightLayerGroup lightLayerGroup = _lightLayerGroups[lightLayer];
+            if (!lightLayerGroup.MeshGroups.ContainsKey(material))
             {
-                shapeGroup.Indices.Add(indexOffset + indices[i]);
+                lightLayerGroup.MeshGroups.Add(material, new Dictionary<int, MeshGroup>());
+            }
+            Dictionary<int, MeshGroup> materialGroup = lightLayerGroup.MeshGroups[material];
+            if (!materialGroup.ContainsKey(order))
+            {
+                materialGroup.Add(order, new MeshGroup(vertices, indices, material, order));
+            }
+            else
+            {
+                materialGroup[order].AddMesh(vertices, indices);
             }
         }
 
-        private void RenderShape(GraphicsDevice graphicsDevice, ShapeGroup shapeGroup)
+        private MeshGroup[] GetMeshGroupsFromLightLayer(LightLayerGroup lightLayerGroup)
         {
-            VertexPositionColorTexture[] vertices = shapeGroup.Vertices.ToArray();
-            int[] indices = shapeGroup.Indices.ToArray();
-            VertexBuffer vertexBuffer = new VertexBuffer(graphicsDevice, typeof(VertexPositionColorTexture), vertices.Length, BufferUsage.None);
-            IndexBuffer indexBuffer = new IndexBuffer(graphicsDevice, typeof(short), indices.Length, BufferUsage.None);
+            List<MeshGroup> meshGroups = new List<MeshGroup>();
+            foreach (Dictionary<int, MeshGroup> materialMeshGroup in lightLayerGroup.MeshGroups.Values.ToArray())
+            {
+                foreach (MeshGroup meshGroup in materialMeshGroup.Values.ToArray())
+                {
+                    meshGroups.Add(meshGroup);
+                }
+            }
+            meshGroups.Sort((a, b) => a.Order - b.Order);
+            return meshGroups.ToArray();
+        }
+
+        private MeshGroup[] GetAllMeshGroups()
+        {
+            List<MeshGroup> meshGroups = new List<MeshGroup>();
+            LightLayerGroup[] lightLayerGroups = _lightLayerGroups.OrderBy(pair => pair.Key).Select(pair => pair.Value).ToArray();
+            foreach (LightLayerGroup lightLayerGroup in lightLayerGroups)
+            {
+                meshGroups.AddRange(GetMeshGroupsFromLightLayer(lightLayerGroup));
+            }
+            return meshGroups.ToArray();
+        }
+
+        private void RenderMeshGroup(GraphicsDevice graphicsDevice, Matrix worldViewProjection, MeshGroup meshGroup)
+        {
+            VertexPositionColorTexture[] vertices = meshGroup.Vertices.ToArray();
+            int[] indices = meshGroup.Indices.ToArray();
+            VertexBuffer vertexBuffer = new VertexBuffer(
+                graphicsDevice, typeof(VertexPositionColorTexture), vertices.Length, BufferUsage.None
+            );
+            IndexBuffer indexBuffer = new IndexBuffer(
+                graphicsDevice, typeof(short), indices.Length, BufferUsage.None
+            );
             graphicsDevice.SetVertexBuffer(vertexBuffer);
             graphicsDevice.Indices = indexBuffer;
-            shapeGroup.Material.ApplyParameters();
-            Effect effect = shapeGroup.Material.Effect;
-            effect.Techniques[0].Passes[0].Apply();
-            graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
+            if (meshGroup.Material.SamplerStates != null)
+            {
+                for (int i = 0; i < meshGroup.Material.SamplerStates.Length; i++)
+                {
+                    graphicsDevice.SamplerStates[i] = meshGroup.Material.SamplerStates[i];
+                }
+            }
+            else
+            {
+                graphicsDevice.SamplerStates[0] = SamplerState.PointClamp;
+            }
+            meshGroup.Material.Effect.Parameters["WorldViewProjection"]?.SetValue(worldViewProjection);
+            meshGroup.Material.ApplyParameters();
+            meshGroup.Material.Effect.Techniques[0].Passes[0].Apply();
+            graphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3
+            );
             vertexBuffer.Dispose();
             indexBuffer.Dispose();
         }
 
-        private void RenderLight(GraphicsDevice graphicsDevice, Camera camera, LightManager lightManager)
+        private void RenderWithoutLight(GraphicsDevice graphicsDevice, Matrix worldViewProjection)
+        {
+            graphicsDevice.SetRenderTarget(null);
+            graphicsDevice.Clear(Color.Transparent);
+            MeshGroup[] meshGroups = GetAllMeshGroups();
+            foreach (MeshGroup meshGroup in meshGroups)
+            {
+                RenderMeshGroup(graphicsDevice, worldViewProjection, meshGroup);
+            }
+        }
+
+        private void RenderLight(GraphicsDevice graphicsDevice, ScreenVerticesIndices screenVerticesIndices, LightManager lightManager, int lightLayer)
+        {
+            graphicsDevice.SetRenderTarget(_lightRenderTarget);
+            graphicsDevice.Clear(Color.Transparent);
+            graphicsDevice.SamplerStates[0] = SamplerState.LinearClamp;
+            graphicsDevice.SetVertexBuffer(screenVerticesIndices.VertexBuffer);
+            graphicsDevice.Indices = screenVerticesIndices.IndexBuffer;
+            AmbientLight ambientLight = lightManager.ActiveAmbientLight;
+            if (ambientLight != null && (ambientLight.LightLayersAffected == null || ambientLight.LightLayersAffected.Contains(lightLayer)))
+            {
+                graphicsDevice.Clear(ambientLight.Color * ambientLight.Intensity);
+            }
+            VertexPositionColorTexture[] vertices = screenVerticesIndices.Vertices;
+            int[] indices = screenVerticesIndices.Indices;
+            foreach (PointLight pointLight in lightManager.PointLights)
+            {
+                if (pointLight.LightLayersAffected == null || pointLight.LightLayersAffected.Contains(lightLayer))
+                {
+                    _effect.Parameters["LightPosition"].SetValue(pointLight.GameObject.Position * PolarSystem.UnitSize);
+                    _effect.Parameters["LightRange"].SetValue(pointLight.Range * PolarSystem.UnitSize);
+                    _effect.Parameters["LightColor"].SetValue(pointLight.Color.ToVector4());
+                    _effect.Parameters["LightIntensity"].SetValue(pointLight.Intensity);
+                    _effect.Techniques[0].Passes[0].Apply();
+                    graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
+                }
+            }
+        }
+
+        private ScreenVerticesIndices GetScreenVerticesIndices(GraphicsDevice graphicsDevice, Camera camera)
         {
             Viewport viewport = graphicsDevice.Viewport;
             float width = viewport.Width;
@@ -113,10 +192,8 @@ namespace Polar.Managers
                 float cameraZOffset = camera.ZOffset;
                 float cameraFieldOfView = camera.FieldOfView;
                 float halfScreenHeight = cameraZOffset * MathF.Tan(cameraFieldOfView / 2) * PolarSystem.UnitSize;
-
                 height = halfScreenHeight * 2;
                 width = height * viewport.AspectRatio;
-
                 worldMatrix = Matrix.CreateTranslation(-width / 2, -height / 2, 0) * camera.WorldMatrix;
             }
             Vector3 topLeft = new Vector3(0, 0, 0);
@@ -127,138 +204,165 @@ namespace Polar.Managers
             topRight = Vector3.Transform(topRight, worldMatrix);
             bottomRight = Vector3.Transform(bottomRight, worldMatrix);
             bottomLeft = Vector3.Transform(bottomLeft, worldMatrix);
-            VertexPositionTexture[] vertices = new VertexPositionTexture[4]
+            VertexPositionColorTexture[] vertices = new VertexPositionColorTexture[4]
             {
-                    new VertexPositionTexture(topLeft, new Vector2(0, 1)),
-                    new VertexPositionTexture(topRight, new Vector2(1, 1)),
-                    new VertexPositionTexture(bottomRight, new Vector2(1, 0)),
-                    new VertexPositionTexture(bottomLeft, new Vector2(0, 0))
+                new VertexPositionColorTexture(topLeft, Color.White, new Vector2(0, 1)),
+                new VertexPositionColorTexture(topRight, Color.White, new Vector2(1, 1)),
+                new VertexPositionColorTexture(bottomRight, Color.White, new Vector2(1, 0)),
+                new VertexPositionColorTexture(bottomLeft, Color.White, new Vector2(0, 0))
             };
             int[] indices = new int[6]
             {
-                    0, 1, 2, 0, 2, 3
+                0, 1, 2, 0, 2, 3
             };
-            VertexBuffer vertexBuffer = new VertexBuffer(graphicsDevice, typeof(VertexPositionTexture), vertices.Length, BufferUsage.None);
+            VertexBuffer vertexBuffer = new VertexBuffer(graphicsDevice, typeof(VertexPositionColorTexture), vertices.Length, BufferUsage.None);
             IndexBuffer indexBuffer = new IndexBuffer(graphicsDevice, typeof(short), indices.Length, BufferUsage.None);
-            graphicsDevice.SetVertexBuffer(vertexBuffer);
-            graphicsDevice.Indices = indexBuffer;
+            return new ScreenVerticesIndices(vertices, indices, vertexBuffer, indexBuffer);
+        }
 
-            graphicsDevice.SetRenderTarget(_lightRenderTarget);
-            AmbientLight ambientLight = lightManager.ActiveAmbientLight;
-            if (ambientLight != null)
-            {
-                graphicsDevice.Clear(ambientLight.Color * ambientLight.Intensity);
-            }
-            foreach (PointLight pointLight in lightManager.PointLights)
-            {
-                _lightEffect.Parameters["LightPosition"].SetValue(pointLight.GameObject.Position * PolarSystem.UnitSize);
-                _lightEffect.Parameters["LightRange"].SetValue(pointLight.Range * PolarSystem.UnitSize);
-                _lightEffect.Parameters["LightColor"].SetValue(pointLight.Color.ToVector4());
-                _lightEffect.Parameters["LightIntensity"].SetValue(pointLight.Intensity);
-                _lightEffect.Techniques[1].Passes[0].Apply();
-                graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
-            }
-
-            graphicsDevice.SetRenderTarget(null);
-            _lightEffect.Parameters["LightTexture"].SetValue(_lightRenderTarget);
-            _lightEffect.Parameters["ColorTexture"].SetValue(_colorRenderTarget);
-            _lightEffect.Techniques[2].Passes[0].Apply();
+        private void BlendTextureLight(GraphicsDevice graphicsDevice, ScreenVerticesIndices screenVerticesIndices)
+        {
+            graphicsDevice.SetRenderTarget(_screenRenderTarget);
+            graphicsDevice.SamplerStates[1] = SamplerState.PointClamp;
+            _effect.Parameters["LightTexture"]?.SetValue(_lightRenderTarget);
+            _effect.Parameters["ColorTexture"]?.SetValue(_colorRenderTarget);
+            VertexPositionColorTexture[] vertices = screenVerticesIndices.Vertices;
+            int[] indices = screenVerticesIndices.Indices;
+            graphicsDevice.SetVertexBuffer(screenVerticesIndices.VertexBuffer);
+            graphicsDevice.Indices = screenVerticesIndices.IndexBuffer;
+            _effect.Techniques[1].Passes[0].Apply();
             graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
-            vertexBuffer.Dispose();
-            indexBuffer.Dispose();
         }
 
-        public void DrawAll(Camera camera, LightManager lightManager)
+        private void RenderScreen(GraphicsDevice graphicsDevice, ScreenVerticesIndices screenVerticesIndices, Matrix worldViewProjection)
         {
-            foreach (Drawer drawer in _items)
-            {
-                drawer.DrawerDraw();
-            }
-
-            GraphicsDevice graphicsDevice = PolarSystem.Game.GraphicsDevice;
-            graphicsDevice.RasterizerState = RasterizerState.CullNone;
-            graphicsDevice.SamplerStates[0] = SamplerState.PointWrap;
-            graphicsDevice.SamplerStates[1] = SamplerState.PointWrap;
-            Matrix viewWorldProjection = GetWorldViewProjectionMatrix(camera);
-            _lightEffect.Parameters["WorldViewProjection"].SetValue(viewWorldProjection);
-            if (lightManager != null && PolarSystem.Lighting)
-            {
-                graphicsDevice.SetRenderTarget(_colorRenderTarget);
-            }
-            else
-            {
-                graphicsDevice.SetRenderTarget(null);
-            }
-            List<ShapeGroup> shapeGroups = _shapeGroups.Values.ToList();
-            shapeGroups.Sort((a, b) => a.Order - b.Order);
-            foreach (ShapeGroup shapeGroup in shapeGroups) {
-                shapeGroup.Material.Parameters["WorldViewProjection"] = viewWorldProjection;
-                RenderShape(graphicsDevice, shapeGroup);
-            }
-            if (lightManager != null && PolarSystem.Lighting)
-            {
-                graphicsDevice.SamplerStates[1] = SamplerState.LinearClamp;
-                RenderLight(graphicsDevice, camera, lightManager);
-                graphicsDevice.SamplerStates[1] = SamplerState.PointWrap;
-            }
-            _shapeGroups.Clear();
+            graphicsDevice.SetRenderTarget(null);
+            graphicsDevice.Clear(Color.Transparent);
+            _effect.Parameters["WorldViewProjection"]?.SetValue(worldViewProjection);
+            _effect.Parameters["ScreenTexture"]?.SetValue(_screenRenderTarget);
+            VertexPositionColorTexture[] vertices = screenVerticesIndices.Vertices;
+            int[] indices = screenVerticesIndices.Indices;
+            graphicsDevice.SetVertexBuffer(screenVerticesIndices.VertexBuffer);
+            graphicsDevice.Indices = screenVerticesIndices.IndexBuffer;
+            _effect.Techniques[2].Passes[0].Apply();
+            graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
         }
 
-        public Matrix GetWorldViewProjectionMatrix(Camera camera)
+        private void RenderLightLayerGroup(GraphicsDevice graphicsDevice, Matrix worldViewProjection, ScreenVerticesIndices screenVerticesIndices, LightManager lightManager, LightLayerGroup lightLayerGroup, int lightLayer)
         {
-            if (camera != null)
+            graphicsDevice.SetRenderTarget(_colorRenderTarget);
+            graphicsDevice.Clear(Color.Transparent);
+            MeshGroup[] meshGroups = GetMeshGroupsFromLightLayer(lightLayerGroup);
+            foreach (MeshGroup meshGroup in meshGroups)
             {
-                return camera.ViewMatrix * camera.ProjectionMatrix;
+                RenderMeshGroup(graphicsDevice, worldViewProjection, meshGroup);
             }
-            else
+            _effect.Parameters["WorldViewProjection"].SetValue(worldViewProjection);
+            RenderLight(graphicsDevice, screenVerticesIndices, lightManager, lightLayer);
+            BlendTextureLight(graphicsDevice, screenVerticesIndices);
+        }
+
+        private void RenderWithLight(GraphicsDevice graphicsDevice, Camera camera, Matrix worldViewProjection, LightManager lightManager)
+        {
+            graphicsDevice.SetRenderTarget(_screenRenderTarget);
+            graphicsDevice.Clear(Color.Transparent);
+            ScreenVerticesIndices screenVerticesIndices = GetScreenVerticesIndices(graphicsDevice, camera);
+            List<int> lightLayers = _lightLayerGroups.Keys.ToList();
+            lightLayers.Sort((a, b) => a - b);
+            for (int i = 0; i < lightLayers.Count; i++)
+            {
+                int lightLayer = lightLayers[i];
+                RenderLightLayerGroup(graphicsDevice, worldViewProjection, screenVerticesIndices, lightManager, _lightLayerGroups[lightLayer], lightLayer);
+            }
+            RenderScreen(graphicsDevice, screenVerticesIndices, worldViewProjection);
+            screenVerticesIndices.VertexBuffer.Dispose();
+            screenVerticesIndices.IndexBuffer.Dispose();
+        }
+
+        private void DrawDrawers()
+        {
+            for (int i = 0; i < _items.Count; i++)
+            {
+                _items[i].Draw();
+            }
+        }
+
+        public Matrix GetWorldViewProjection(Camera camera)
+        {
+            if (camera == null)
             {
                 Viewport viewport = PolarSystem.Game.GraphicsDevice.Viewport;
                 return Matrix.CreateOrthographicOffCenter(0, viewport.Width, 0, viewport.Height, 0f, 1f);
             }
+            return camera.ViewMatrix * camera.ProjectionMatrix;
         }
 
-        public void DrawCircle(Vector2 position, float radius, Color color = default, int order = 0)
+        public void RenderMeshes(Camera camera, LightManager lightManager)
         {
-            if (color == default)
+            DrawDrawers();
+            GraphicsDevice graphicsDevice = PolarSystem.Game.GraphicsDevice;
+            Matrix worldViewProjection = GetWorldViewProjection(camera);
+            graphicsDevice.RasterizerState = RasterizerState.CullNone;
+            if (PolarSystem.Lighting)
             {
-                color = Color.White;
+                RenderWithLight(graphicsDevice, camera, worldViewProjection, lightManager);
             }
-            int vertexCount = 12;
-            int indexCount = vertexCount + (vertexCount - 3) * 2;
-            VertexPositionColorTexture[] vertices = new VertexPositionColorTexture[vertexCount];
-            int[] indices = new int[indexCount];
-            float angle = MathHelper.TwoPi / vertexCount;
-            for (int i = 0; i < vertices.Length; i++)
+            else
             {
-                float vertexAngle = i * angle;
-                Vector2 normalizedVertexPosition = PolarMath.PolarToEuclidean(1f, vertexAngle);
-                Vector2 vertexPosition = position + normalizedVertexPosition * radius;
-                vertices[i] = new VertexPositionColorTexture(new Vector3(vertexPosition.X, vertexPosition.Y, 0), color, normalizedVertexPosition);
+                RenderWithoutLight(graphicsDevice, worldViewProjection);
             }
-            int triangleCount = indices.Length / 3;
-            for (int i = 0; i < triangleCount; i += 1)
-            {
-                int currentIndex = i * 3;
-                indices[currentIndex] = 0;
-                indices[currentIndex + 1] = i + 1;
-                indices[currentIndex + 2] = i + 2;
-            }
-            AddShape(_visualizerMaterial, vertices, indices, order);
+            _lightLayerGroups.Clear();
         }
 
-        public struct ShapeGroup
+        private struct MeshGroup
         {
-            public Material Material;
             public List<VertexPositionColorTexture> Vertices;
             public List<int> Indices;
+            public Material Material;
             public int Order;
 
-            public ShapeGroup(Material material, int order)
+            public MeshGroup(VertexPositionColorTexture[] vertices, int[] indices, Material material, int order)
             {
+                Vertices = vertices.ToList();
+                Indices = indices.ToList();
                 Material = material;
-                Vertices = new List<VertexPositionColorTexture>();
-                Indices = new List<int>();
                 Order = order;
+            }
+
+            public void AddMesh(VertexPositionColorTexture[] vertices, int[] indices)
+            {
+                int prevVertexIndex = Vertices.Count;
+                Vertices.AddRange(vertices);
+                foreach (int index in indices)
+                {
+                    Indices.Add(prevVertexIndex + index);
+                }
+            }
+        }
+
+        private struct LightLayerGroup
+        {
+            public Dictionary<Material, Dictionary<int, MeshGroup>> MeshGroups;
+
+            public LightLayerGroup()
+            {
+                MeshGroups = new Dictionary<Material, Dictionary<int, MeshGroup>>();
+            }
+        }
+
+        private struct ScreenVerticesIndices
+        {
+            public VertexPositionColorTexture[] Vertices;
+            public int[] Indices;
+            public VertexBuffer VertexBuffer;
+            public IndexBuffer IndexBuffer;
+
+            public ScreenVerticesIndices(VertexPositionColorTexture[] vertices, int[] indices, VertexBuffer vertexBuffer, IndexBuffer indexBuffer)
+            {
+                Vertices = vertices;
+                Indices = indices;
+                VertexBuffer = vertexBuffer;
+                IndexBuffer = indexBuffer;
             }
         }
     }
