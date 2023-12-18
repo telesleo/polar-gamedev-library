@@ -89,8 +89,8 @@ namespace Polar
 
         public void Draw(GameTime gameTime)
         {
-            DrawerManager.RenderMeshes(CameraManager.ActiveCamera, LightManager);
             GameObjectManager.DrawVisualizer(DrawerManager);
+            DrawerManager.RenderMeshes(CameraManager.ActiveCamera, LightManager);
             UIManager.DrawUIElements();
         }
 
