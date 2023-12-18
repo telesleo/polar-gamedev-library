@@ -17,7 +17,22 @@ namespace Polar
             SamplerStates = samplerStates;
         }
 
-        public void ApplyParameters()
+        private void ApplySamplerStates(GraphicsDevice graphicsDevice)
+        {
+            if (SamplerStates != null)
+            {
+                for (int i = 0; i < SamplerStates.Length; i++)
+                {
+                    graphicsDevice.SamplerStates[i] = SamplerStates[i];
+                }
+            }
+            else
+            {
+                graphicsDevice.SamplerStates[0] = SamplerState.PointClamp;
+            }
+        }
+
+        private void ApplyParameters()
         {
             foreach (var parameter in Parameters)
             {
@@ -60,6 +75,12 @@ namespace Polar
                     Effect.Parameters[parameter.Key].SetValue(colorValue.ToVector4());
                 }
             }
+        }
+
+        public void Apply(GraphicsDevice graphicsDevice)
+        {
+            ApplySamplerStates(graphicsDevice);
+            ApplyParameters();
         }
     }
 }
