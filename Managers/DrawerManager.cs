@@ -9,6 +9,7 @@ namespace Polar.Managers
     public class DrawerManager : Manager<Drawer>
     {
         private Dictionary<int, LightLayerGroup> _lightLayerGroups;
+        private VisualizerMeshes _visualizerMeshes;
 
         private RenderTarget2D _colorRenderTarget;
         private RenderTarget2D _lightRenderTarget;
@@ -47,6 +48,7 @@ namespace Polar.Managers
                 graphicsDevice.PresentationParameters.MultiSampleCount,
                 RenderTargetUsage.PreserveContents
             );
+            _visualizerMeshes = new VisualizerMeshes();
         }
 
         public override void Unload()
@@ -60,6 +62,8 @@ namespace Polar.Managers
 
         public void AddMesh(VertexPositionColorTexture[] vertices, int[] indices, Material material, int order, int lightLayer)
         {
+            vertices = vertices.ToArray();
+            indices = indices.ToArray();
             for (int i = 0; i < vertices.Length; i++)
             {
                 vertices[i].Position *= PolarSystem.UnitSize;
@@ -82,6 +86,15 @@ namespace Polar.Managers
             {
                 materialGroup[order].AddMesh(vertices, indices);
             }
+        }
+
+        public void AddVisualizerMesh(VertexPositionColorTexture[] vertices, int[] indices)
+        {
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                vertices[i].Position *= PolarSystem.UnitSize;
+            }
+            _visualizerMeshes.AddMesh(vertices, indices);
         }
 
         private MeshGroup[] GetMeshGroupsFromLightLayer(LightLayerGroup lightLayerGroup)
@@ -121,23 +134,27 @@ namespace Polar.Managers
             );
             graphicsDevice.SetVertexBuffer(vertexBuffer);
             graphicsDevice.Indices = indexBuffer;
-            if (meshGroup.Material.SamplerStates != null)
-            {
-                for (int i = 0; i < meshGroup.Material.SamplerStates.Length; i++)
-                {
-                    graphicsDevice.SamplerStates[i] = meshGroup.Material.SamplerStates[i];
-                }
-            }
-            else
-            {
-                graphicsDevice.SamplerStates[0] = SamplerState.PointClamp;
-            }
             meshGroup.Material.Effect.Parameters["WorldViewProjection"]?.SetValue(worldViewProjection);
-            meshGroup.Material.ApplyParameters();
+            meshGroup.Material.Apply(graphicsDevice);
             meshGroup.Material.Effect.Techniques[0].Passes[0].Apply();
             graphicsDevice.DrawUserIndexedPrimitives(
                 PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3
             );
+            vertexBuffer.Dispose();
+            indexBuffer.Dispose();
+        }
+
+        private void RenderVisualizers(GraphicsDevice graphicsDevice)
+        {
+            if (_visualizerMeshes.Vertices.Count <= 0) return;
+            graphicsDevice.SetRenderTarget(null);
+            VertexPositionColorTexture[] vertices = _visualizerMeshes.Vertices.ToArray();
+            int[] indices = _visualizerMeshes.Indices.ToArray();
+            VertexBuffer vertexBuffer = new VertexBuffer(graphicsDevice, typeof(VertexPositionColorTexture), vertices.Length, BufferUsage.None);
+            IndexBuffer indexBuffer = new IndexBuffer(graphicsDevice, typeof(short), indices.Length, BufferUsage.None);
+            PolarSystem.VisualizerMaterial.Apply(graphicsDevice);
+            PolarSystem.VisualizerMaterial.Effect.Techniques[0].Passes[0].Apply();
+            graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
             vertexBuffer.Dispose();
             indexBuffer.Dispose();
         }
@@ -151,15 +168,16 @@ namespace Polar.Managers
             {
                 RenderMeshGroup(graphicsDevice, worldViewProjection, meshGroup);
             }
+            RenderVisualizers(graphicsDevice);
         }
 
         private void RenderLight(GraphicsDevice graphicsDevice, ScreenVerticesIndices screenVerticesIndices, LightManager lightManager, int lightLayer)
         {
             graphicsDevice.SetRenderTarget(_lightRenderTarget);
             graphicsDevice.Clear(Color.Transparent);
-            graphicsDevice.SamplerStates[0] = SamplerState.LinearClamp;
             graphicsDevice.SetVertexBuffer(screenVerticesIndices.VertexBuffer);
             graphicsDevice.Indices = screenVerticesIndices.IndexBuffer;
+            graphicsDevice.SamplerStates[0] = SamplerState.PointClamp;
             AmbientLight ambientLight = lightManager.ActiveAmbientLight;
             if (ambientLight != null && (ambientLight.LightLayersAffected == null || ambientLight.LightLayersAffected.Contains(lightLayer)))
             {
@@ -223,7 +241,7 @@ namespace Polar.Managers
         private void BlendTextureLight(GraphicsDevice graphicsDevice, ScreenVerticesIndices screenVerticesIndices)
         {
             graphicsDevice.SetRenderTarget(_screenRenderTarget);
-            graphicsDevice.SamplerStates[1] = SamplerState.PointClamp;
+            graphicsDevice.SamplerStates[1] = SamplerState.LinearClamp;
             _effect.Parameters["LightTexture"]?.SetValue(_lightRenderTarget);
             _effect.Parameters["ColorTexture"]?.SetValue(_colorRenderTarget);
             VertexPositionColorTexture[] vertices = screenVerticesIndices.Vertices;
@@ -246,6 +264,7 @@ namespace Polar.Managers
             graphicsDevice.Indices = screenVerticesIndices.IndexBuffer;
             _effect.Techniques[2].Passes[0].Apply();
             graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, vertices, 0, vertices.Length, indices, 0, indices.Length / 3);
+            RenderVisualizers(graphicsDevice);
         }
 
         private void RenderLightLayerGroup(GraphicsDevice graphicsDevice, Matrix worldViewProjection, ScreenVerticesIndices screenVerticesIndices, LightManager lightManager, LightLayerGroup lightLayerGroup, int lightLayer)
@@ -287,7 +306,7 @@ namespace Polar.Managers
             }
         }
 
-        public Matrix GetWorldViewProjection(Camera camera)
+        private Matrix GetWorldViewProjection(Camera camera)
         {
             if (camera == null)
             {
@@ -312,6 +331,7 @@ namespace Polar.Managers
                 RenderWithoutLight(graphicsDevice, worldViewProjection);
             }
             _lightLayerGroups.Clear();
+            _visualizerMeshes.Clear();
         }
 
         private struct MeshGroup
@@ -331,11 +351,11 @@ namespace Polar.Managers
 
             public void AddMesh(VertexPositionColorTexture[] vertices, int[] indices)
             {
-                int prevVertexIndex = Vertices.Count;
+                int lastVertexIndex = Vertices.Count;
                 Vertices.AddRange(vertices);
                 foreach (int index in indices)
                 {
-                    Indices.Add(prevVertexIndex + index);
+                    Indices.Add(lastVertexIndex + index);
                 }
             }
         }
@@ -363,6 +383,34 @@ namespace Polar.Managers
                 Indices = indices;
                 VertexBuffer = vertexBuffer;
                 IndexBuffer = indexBuffer;
+            }
+        }
+
+        private struct VisualizerMeshes
+        {
+            public List<VertexPositionColorTexture> Vertices;
+            public List<int> Indices;
+
+            public VisualizerMeshes()
+            {
+                Vertices = new List<VertexPositionColorTexture>();
+                Indices = new List<int>();
+            }
+
+            public void AddMesh(VertexPositionColorTexture[] vertices, int[] indices)
+            {
+                int lastVertexIndex = Vertices.Count;
+                Vertices.AddRange(vertices);
+                foreach (int index in indices)
+                {
+                    Indices.Add(lastVertexIndex + index);
+                }
+            }
+
+            public void Clear()
+            {
+                Vertices.Clear();
+                Indices.Clear();
             }
         }
     }
