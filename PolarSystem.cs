@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using Newtonsoft.Json;
 using Polar.Managers;
+using Polar.Math;
 using System.Collections.Generic;
 using System.IO;
 
@@ -11,7 +12,9 @@ namespace Polar {
         public static bool DisplayFPS;
         public static bool DrawColliders = false;
         public static bool Lighting = false;
-        public static int VisualizerOrder = 100000;
+        public static Material VisualizerMaterial;
+        public static Vector2[] VisualizerCircleVertices { get; private set; }
+        public static int[] VisualizerCircleIndices { get; private set; }
 
         public static Game Game { get; private set; }
         public Input Input { get; private set; }
@@ -40,9 +43,35 @@ namespace Polar {
         public void Initialize() {
             _textures = new Dictionary<string, Texture2D>();
             SegmentManager.Initialize();
+            SetVizualizerCircle();
+        }
+
+        private void SetVizualizerCircle()
+        {
+            int vertexCount = 12;
+            int indexCount = vertexCount + (vertexCount - 3) * 2;
+            VisualizerCircleVertices = new Vector2[vertexCount];
+            VisualizerCircleIndices = new int[indexCount];
+            float angle = MathHelper.TwoPi / vertexCount;
+            for (int i = 0; i < VisualizerCircleVertices.Length; i++)
+            {
+                VisualizerCircleVertices[i] = PolarMath.PolarToEuclidean(1f, i * angle);
+            }
+            int triangleCount = VisualizerCircleIndices.Length / 3;
+            for (int i = 0; i < triangleCount; i += 1)
+            {
+                int currentIndex = i * 3;
+                VisualizerCircleIndices[currentIndex] = 0;
+                VisualizerCircleIndices[currentIndex + 1] = i + 1;
+                VisualizerCircleIndices[currentIndex + 2] = i + 2;
+            }
         }
 
         public void LoadContent() {
+            Texture2D visualizerTexture = new Texture2D(Game.GraphicsDevice, 1, 1);
+            visualizerTexture.SetData(new Color[] { Color.White });
+            VisualizerMaterial = new Material(Game.Content.Load<Effect>("Shaders/Effect"));
+            VisualizerMaterial.Parameters.Add("Texture", visualizerTexture);
             SegmentManager.LoadContent();
         }
 
