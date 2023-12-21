@@ -15,7 +15,6 @@ namespace Polar {
         public static Material VisualizerMaterial;
         public static Vector2[] VisualizerCircleVertices { get; private set; }
         public static int[] VisualizerCircleIndices { get; private set; }
-
         public static Game Game { get; private set; }
         public Input Input { get; private set; }
         public SegmentManager SegmentManager { get; private set; }
@@ -31,12 +30,9 @@ namespace Polar {
 
         public PolarSystem(Game game) {
             Game = game;
-
             DisplayFPS = false;
-
             Input = new Input();
             SegmentManager = new SegmentManager();
-
             ProjectName = Game.GetType().Namespace;
         }
 
