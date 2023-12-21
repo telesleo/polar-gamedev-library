@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Polar.Managers;
 
 namespace Polar
 {
@@ -34,7 +35,6 @@ namespace Polar
                 UpdateUV();
             }
         }
-
         public bool FlipX { 
             get 
             {
@@ -59,7 +59,6 @@ namespace Polar
                 UpdateUV();
             }
         }
-
         private Material _material;
         private float _radiansRotation;
         private Vector2[] _uv;
@@ -110,6 +109,14 @@ namespace Polar
 
         public override void Draw()
         {
+            if (GameObject.Awake)
+            {
+                DrawSprite();
+            }
+        }
+
+        private void DrawSprite()
+        {
             Vector2 position = GameObject.Position;
             Texture2D texture = (Texture2D)_material.Parameters["Texture"];
             int spriteCount = (SpriteCount <= 1) ? 1 : SpriteCount;
@@ -134,7 +141,7 @@ namespace Polar
             {
                 0, 1, 2, 0, 2, 3
             };
-            _drawerManager.AddMesh(vertices, indices, _material, Order, LightLayer);
+            _drawerManager.AddMesh(vertices, indices, _material, LightLayer);
         }
     }
 }

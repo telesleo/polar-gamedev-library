@@ -14,6 +14,14 @@ namespace Polar
 
         public override void Draw()
         {
+            if (GameObject.Awake)
+            {
+                DrawMesh();
+            }
+        }
+
+        private void DrawMesh()
+        {
             Vector2 scale = GameObject.Scale;
             Matrix scaleMatrix = Matrix.CreateScale(scale.X, scale.Y, 0);
             Matrix rotationMatrix = Matrix.CreateRotationZ(MathHelper.ToRadians(-GameObject.Rotation));
@@ -27,7 +35,7 @@ namespace Polar
                     vertices[i] = new VertexPositionColorTexture(subMesh.Vertices[i].Position, subMesh.Vertices[i].Color, subMesh.Vertices[i].TextureCoordinate);
                     vertices[i].Position = Vector3.Transform(vertices[i].Position, scaleMatrix * rotationMatrix * translationMatrix);
                 }
-                _drawerManager.AddMesh(vertices, subMesh.Indices, subMesh.Material, Order, LightLayer);
+                _drawerManager.AddMesh(vertices, subMesh.Indices, subMesh.Material, LightLayer);
             }
         }
     }

@@ -1,4 +1,5 @@
-﻿using Polar.Managers;
+﻿using Microsoft.Xna.Framework;
+using Polar.Managers;
 
 namespace Polar
 {
