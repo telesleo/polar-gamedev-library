@@ -22,15 +22,5 @@ namespace Polar
             }
             return worldPolylines;
         }
-
-        public override void DrawCollider() {
-            //if (Polylines == null) return;
-            //foreach (Vector2[] polyline in Polylines) {
-            //    if (polyline == null) continue;
-            //    for (int i = 0; i < polyline.Length - 1; i++) {
-            //        drawer.DrawLine(GameObject.Position + polyline[i], GameObject.Position + polyline[i + 1], _colliderManager.DrawingColor);
-            //    }
-            //}
-        }
     }
 }

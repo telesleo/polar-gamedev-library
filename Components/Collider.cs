@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Polar.Managers;
 using System.Collections.Generic;
+using static Polar.Collider;
 
 namespace Polar
 {
@@ -22,8 +23,8 @@ namespace Polar
         public static Vector2 CircleCollision(CircleCollider circleColliderA, CircleCollider circleColliderB) {
             Vector2 positionA = circleColliderA.GameObject.Position;
             Vector2 positionB = circleColliderB.GameObject.Position;
-            float radiusA = circleColliderA.Radius/* * (PolarSystem.UnitSize)*/;
-            float radiusB = circleColliderB.Radius/* * (PolarSystem.UnitSize)*/;
+            float radiusA = circleColliderA.Radius;
+            float radiusB = circleColliderB.Radius;
 
             float distance = Vector2.Distance(positionA, positionB);
 
@@ -34,8 +35,6 @@ namespace Polar
             }
             return Vector2.Zero;
         }
-
-
 
         public static Vector2 CircleLineCollision(CircleCollider circleCollider, LineCollider lineCollider) {
             Vector2 circlePosition = circleCollider.GameObject.Position;
@@ -92,10 +91,6 @@ namespace Polar
             float t = Vector2.Dot(vector1, vector2) / (length * length);
             float tClamped = MathHelper.Clamp(t, 0, 1);
             return Vector2.Lerp(pointA, pointB, tClamped);
-        }
-
-        public virtual void DrawCollider() {
-
         }
 
         public struct Collision {
