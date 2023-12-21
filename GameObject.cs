@@ -7,21 +7,36 @@ namespace Polar
 {
     public class GameObject
     {
-        public GameObjectManager GameObjectManager { get; private set; }
+        public Segment Segment { get; private set; }
 
         public string Name;
         public string Tag;
 
         public bool Enabled;
-
-        public Vector2 LocalPosition;
-        public Vector2 LocalScale;
-        public float LocalRotation;
+        public bool _awake;
+        public bool Awake
+        {
+            get
+            {
+                if (ParentObject != null)
+                {
+                    return ParentObject.Awake;
+                }
+                return _awake;
+            }
+            set
+            {
+                _awake = value;
+            }
+        }
 
         public List<Component> Components { get; private set; }
         public GameObject ParentObject;
         public List<GameObject> ChildrenObjects { get; private set; }
 
+        public Vector2 LocalPosition;
+        public Vector2 LocalScale;
+        public float LocalRotation;
         public Vector2 Position
         {
             get
@@ -112,10 +127,11 @@ namespace Polar
             }
         }
 
-        public GameObject(string name,Vector2 position, Vector2 scale, float rotation, string tag = null, bool enabled = true)
+        public GameObject(string name,Vector2 position, Vector2 scale, float rotation, string tag = null, bool enabled = true, bool awake = true)
         {
             Name = name;
             Enabled = enabled;
+            _awake = awake;
 
             Components = new List<Component>();
             ChildrenObjects = new List<GameObject>();
@@ -128,41 +144,47 @@ namespace Polar
 
         public void Initialize(Segment segment)
         {
-            GameObjectManager = segment.GameObjectManager;
-            foreach (Component component in Components)
+            Segment = segment;
+            for (int i = 0; i < Components.Count; i++)
             {
-                component.Initialize(segment);
+                Components[i].Initialize(segment);
             }
         }
 
         public void Update(GameTime gameTime)
         {
-            foreach (Component component in Components)
+            for (int i = 0; i < Components.Count; i++)
             {
-                component.Update(gameTime);
+                Components[i].Update(gameTime);
             }
         }
 
         public void Unload()
         {
-            foreach (Component component in Components)
+            for (int i = 0; i < Components.Count; i++)
             {
-                component.Unload();
+                Components[i].Unload();
             }
         }
 
         public void OnCollide(Collider collider, Vector2 direction)
         {
-            foreach (Component component in Components)
+            for (int i = 0; i < Components.Count; i++)
             {
-                component.OnCollide(collider, direction);
+                Components[i].OnCollide(collider, direction);
             }
+        }
+
+        public void ApplyMotion(Vector2 motion)
+        {
+            Position += motion;
         }
 
         public void DrawVisualizer(DrawerManager drawerManager)
         {
-            foreach (Component component in Components)
+            for (int i = 0; i < Components.Count; i++)
             {
+                Component component = Components[i];
                 if (component.Visualizer)
                 {
                     component.DrawVisualizer(drawerManager);
@@ -179,8 +201,9 @@ namespace Polar
 
         public T GetComponent<T>() where T : Component
         {
-            foreach (Component component in Components)
+            for (int i = 0; i < Components.Count; i++)
             {
+                Component component = Components[i];
                 if (component is T) {
                     return (T)component;
                 }
@@ -191,8 +214,9 @@ namespace Polar
         public T[] GetComponents<T>() where T : Component
         {
             List<T> components = new List<T>();
-            foreach (Component component in Components)
+            for (int i = 0; i < Components.Count; i++)
             {
+                Component component = Components[i];
                 if (component is T)
                 {
                     components.Add((T)component);
@@ -208,9 +232,9 @@ namespace Polar
             {
                 return component;
             }
-            foreach (var child in ChildrenObjects)
+            for (int i = 0; i < ChildrenObjects.Count; i++)
             {
-                component = child.GetChildComponent<T>();
+                component = ChildrenObjects[i].GetChildComponent<T>();
                 if (component != null)
                 {
                     return component;
@@ -223,9 +247,9 @@ namespace Polar
         {
             List<T> components = new List<T>();
             components.AddRange(GetComponents<T>());
-            foreach (var child in ChildrenObjects)
+            for (int i = 0; i < ChildrenObjects.Count; i++)
             {
-                components.AddRange(child.GetChildComponents<T>());
+                components.AddRange(ChildrenObjects[i].GetChildComponents<T>());
             }
             return components.ToArray();
         }
@@ -244,17 +268,18 @@ namespace Polar
 
         public GameObject[] GetObjectsByTag(string tag)
         {
-            return GameObjectManager.GetObjectsByTag(tag);
+            return Segment.GameObjectManager.GetObjectsByTag(tag);
         }
 
         public void SetParent(GameObject parent)
         {
+            Vector2 position = Position;
             ParentObject?.RemoveChildObject(this);
             if (parent != null)
             {
                 parent.AddChildObject(this);
             }
-
+            Position = position;
         }
     }
 }
