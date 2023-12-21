@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using System;
 
 namespace Polar.Managers
 {
@@ -40,21 +41,25 @@ namespace Polar.Managers
 
         public override void Initialize()
         {
+            base.Initialize();
             ActiveSegment?.Initialize();
         }
 
         public override void LoadContent()
         {
+            base.LoadContent();
             ActiveSegment?.LoadContent();
         }
 
         public override void Update(GameTime gameTime)
         {
+            base.Update(gameTime);
             ActiveSegment?.Update(gameTime);
         }
 
         public override void Draw(GameTime gameTime)
         {
+            base.Draw(gameTime);
             ActiveSegment?.Draw(gameTime);
         }
     }
