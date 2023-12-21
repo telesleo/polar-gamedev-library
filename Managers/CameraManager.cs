@@ -16,12 +16,5 @@ namespace Polar.Managers {
             base.Add(camera);
             _items.Sort((a, b) => a.Order - b.Order);
         }
-
-        public override void Update(GameTime gameTime) {
-            if (ActiveCamera != null)
-            {
-                ActiveCamera.UpdateMatrices();
-            };
-        }
     }
 }
