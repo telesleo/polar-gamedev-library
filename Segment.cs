@@ -2,6 +2,7 @@
 using Polar.Managers;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using System;
 
 namespace Polar
 {
@@ -89,8 +90,8 @@ namespace Polar
 
         public void Draw(GameTime gameTime)
         {
-            DrawerManager.DrawAll(CameraManager.ActiveCamera, LightManager);
             GameObjectManager.DrawVisualizer(DrawerManager);
+            DrawerManager.RenderMeshes(CameraManager.ActiveCamera, LightManager);
             UIManager.DrawUIElements();
         }
 

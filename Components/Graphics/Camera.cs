@@ -16,13 +16,12 @@ namespace Polar {
 
         public int Order;
 
-        public Camera(int order = 0)
+        public Camera(int order = 0, float nearPlane = 0.1f, float farPlane = 2048f)
         {
             Order = order;
             FieldOfView = MathHelper.PiOver2;
-            FarPlane = 2048f;
-            NearPlane = 0.1f;
-
+            NearPlane = nearPlane;
+            FarPlane = farPlane;
         }
 
         public override void Initialize(Segment segment)

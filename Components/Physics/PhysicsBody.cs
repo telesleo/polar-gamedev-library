@@ -9,7 +9,7 @@ namespace Polar {
 
         public PhysicsBody(float mass = 1f, Vector2 velocity = default, float drag = 0f) {
             Mass = mass;
-            Velocity = velocity == default ? new Vector2(0, 0) : velocity;
+            Velocity = velocity == default ? Vector2.Zero : velocity;
             Drag = drag;
 
             _executionOrder = 1000;
@@ -17,7 +17,6 @@ namespace Polar {
 
         public override void Update(GameTime gameTime) {
             ApplyDrag(gameTime);
-
             Velocity += Acceleration * (float)gameTime.ElapsedGameTime.TotalSeconds;
             GameObject.Position += Velocity * (float)gameTime.ElapsedGameTime.TotalSeconds;
         }

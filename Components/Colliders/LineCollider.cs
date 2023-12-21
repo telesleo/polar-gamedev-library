@@ -1,5 +1,4 @@
 ﻿using Microsoft.Xna.Framework;
-using Polar.Managers;
 
 namespace Polar
 {
@@ -21,12 +20,6 @@ namespace Polar
             worldPoints[0] = GameObject.Position + PointA;
             worldPoints[1] = GameObject.Position + PointB;
             return worldPoints;
-        }
-
-        public override void DrawCollider() {
-            //Vector2 worldPointA = GameObject.Position + PointA;
-            //Vector2 worldPointB = GameObject.Position + PointB;
-            //drawer.DrawLine(worldPointA, worldPointB, _colliderManager.DrawingColor);
         }
     }
 }

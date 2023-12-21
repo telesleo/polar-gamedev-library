@@ -6,7 +6,7 @@ namespace Polar
     {
         public float Range;
 
-        public PointLight(Color color, int order, float range, float intensity = 1) : base(color, order, intensity)
+        public PointLight(Color color, int order, float range, float intensity = 1, int[] lightLayerAffected = null) : base(color, order, intensity, lightLayerAffected)
         {
             Range = range;
         }

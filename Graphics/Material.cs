@@ -8,14 +8,31 @@ namespace Polar
     {
         public Effect Effect;
         public Dictionary<string, object> Parameters;
+        public SamplerState[] SamplerStates;
 
-        public Material(Effect effect)
+        public Material(Effect effect, SamplerState[] samplerStates = null)
         {
             Effect = effect;
             Parameters = new Dictionary<string, object>();
+            SamplerStates = samplerStates;
         }
 
-        public void ApplyParameters()
+        private void ApplySamplerStates(GraphicsDevice graphicsDevice)
+        {
+            if (SamplerStates != null)
+            {
+                for (int i = 0; i < SamplerStates.Length; i++)
+                {
+                    graphicsDevice.SamplerStates[i] = SamplerStates[i];
+                }
+            }
+            else
+            {
+                graphicsDevice.SamplerStates[0] = SamplerState.PointClamp;
+            }
+        }
+
+        private void ApplyParameters()
         {
             foreach (var parameter in Parameters)
             {
@@ -45,15 +62,25 @@ namespace Polar
                 {
                     Effect.Parameters[parameter.Key].SetValue(vector4Value);
                 }
-                else if (parameter.Value is Texture2D texture)
+                else if (parameter.Value is Texture2D textureValue)
                 {
-                    Effect.Parameters[parameter.Key].SetValue(texture);
+                    Effect.Parameters[parameter.Key].SetValue(textureValue);
                 }
-                else if (parameter.Value is Matrix matrix)
+                else if (parameter.Value is Matrix matrixValue)
                 {
-                    Effect.Parameters[parameter.Key].SetValue(matrix);
+                    Effect.Parameters[parameter.Key].SetValue(matrixValue);
+                }
+                else if (parameter.Value is Color colorValue)
+                {
+                    Effect.Parameters[parameter.Key].SetValue(colorValue.ToVector4());
                 }
             }
+        }
+
+        public void Apply(GraphicsDevice graphicsDevice)
+        {
+            ApplySamplerStates(graphicsDevice);
+            ApplyParameters();
         }
     }
 }
